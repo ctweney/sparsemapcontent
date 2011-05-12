@@ -251,7 +251,7 @@ public class InternalContent {
      * @param contentManager
      *            the content manager now managing this content object.
      */
-    void internalize(ContentManagerImpl contentManager, boolean readOnly) {
+    public void internalize(ContentManagerImpl contentManager, boolean readOnly) {
         this.contentManager = contentManager;
         updated = false;
         newcontent = false;
