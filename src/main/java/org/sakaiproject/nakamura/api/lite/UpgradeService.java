@@ -27,4 +27,14 @@ public interface UpgradeService<T> {
    */
   void doUpgrade() throws Exception;
 
+  /**
+   * @param dryRun true if you want to just verify; false if you want to really change data. Default is true.
+   */
+  void setDryRun(boolean dryRun);
+
+  /**
+   * @param verify true if you want to verify using Upgrader.verify(). Default is false.
+   */
+  void setVerify(boolean verify);
+
 }
