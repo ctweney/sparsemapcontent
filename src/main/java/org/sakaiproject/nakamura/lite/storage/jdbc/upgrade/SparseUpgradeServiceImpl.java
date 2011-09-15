@@ -138,8 +138,8 @@ public class SparseUpgradeServiceImpl implements UpgradeService<StorageClient> {
       // find upgraders we need to run
       List<Upgrader<StorageClient>> allUpgraders = upgradeTracker.getUpgraders();
       List<Upgrader<StorageClient>> upgradersToRun = filterUpgraders(allUpgraders, upgradeLogger);
-      LOGGER.info("Found {} total upgraders, of which {} need to be run on keyspace {}, dry run is {}",
-              new Object[]{allUpgraders.size(), upgradersToRun.size(), keySpace, dryRun});
+      LOGGER.info("Found {} total upgraders, of which {} need to be run on keyspace {}, dry run is {}, verify is {}",
+              new Object[]{allUpgraders.size(), upgradersToRun.size(), keySpace, this.dryRun, this.verify});
       for ( Upgrader<StorageClient> upgrader : upgradersToRun ) {
         LOGGER.info("Will run " + upgrader.getClass().getName());
       }
