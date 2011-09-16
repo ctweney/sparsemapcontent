@@ -80,8 +80,6 @@ public class MigrationServiceImplTest {
     @Test
     public void doMigration() throws Exception {
         this.migrationService.migratorTracker.bind(this.migrator);
-        this.migrationService.dryRun = false;
-        this.migrationService.verify = true;
 
         // add some content
         SessionImpl session = (SessionImpl) this.migrationService.repository.loginAdministrative();
@@ -93,7 +91,7 @@ public class MigrationServiceImplTest {
         session.getContentManager().update(content3);
 
         // test the migrate method
-        this.migrationService.doMigration();
+        this.migrationService.doMigration(false, true);
 
         // make sure the content rows have the new values
         Content updated = session.getContentManager().get("/foo");
