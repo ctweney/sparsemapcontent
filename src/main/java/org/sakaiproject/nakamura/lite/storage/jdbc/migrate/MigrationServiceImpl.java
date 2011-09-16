@@ -18,6 +18,7 @@
 
 package org.sakaiproject.nakamura.lite.storage.jdbc.migrate;
 
+import com.google.common.collect.Maps;
 import org.apache.felix.scr.annotations.Component;
 import org.apache.felix.scr.annotations.Property;
 import org.apache.felix.scr.annotations.Reference;
@@ -38,9 +39,13 @@ import org.sakaiproject.nakamura.lite.accesscontrol.AccessControlManagerImpl;
 import org.sakaiproject.nakamura.lite.content.BlockSetContentHelper;
 import org.sakaiproject.nakamura.lite.storage.DisposableIterator;
 import org.sakaiproject.nakamura.lite.storage.SparseRow;
+import org.sakaiproject.nakamura.lite.storage.jdbc.Indexer;
+import org.sakaiproject.nakamura.lite.storage.jdbc.JDBCStorageClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -133,6 +138,10 @@ public class MigrationServiceImpl implements MigrationService {
             session = (SessionImpl) repository.loginAdministrative();
             String keySpace = configuration.getKeySpace();
             MigrationLogger migrationLogger = new MigrationLogger(session);
+            Indexer indexer = null;
+            if (session.getClient() instanceof JDBCStorageClient) {
+                indexer = ((JDBCStorageClient) session.getClient()).getIndexer();
+            }
 
             // find migrators we need to run
             PropertyMigrator[] allMigrators = migratorTracker.getPropertyMigrators();
@@ -146,15 +155,15 @@ public class MigrationServiceImpl implements MigrationService {
             if (migratorsToRun.length > 0) {
                 // process authorizables
                 processColumnFamily(session, keySpace, configuration.getAuthorizableColumnFamily(),
-                        migratorsToRun, AUTHORIZABLE_KEY_EXTRACTOR, migrationLogger);
+                        migratorsToRun, AUTHORIZABLE_KEY_EXTRACTOR, migrationLogger, indexer);
 
                 // process regular content
                 processColumnFamily(session, keySpace, configuration.getContentColumnFamily(),
-                        migratorsToRun, CONTENT_KEY_EXTRACTOR, migrationLogger);
+                        migratorsToRun, CONTENT_KEY_EXTRACTOR, migrationLogger, indexer);
 
                 // process acls
                 processColumnFamily(session, keySpace, configuration.getAclColumnFamily(),
-                        migratorsToRun, ACL_KEY_EXTRACTOR, migrationLogger);
+                        migratorsToRun, ACL_KEY_EXTRACTOR, migrationLogger, indexer);
             }
 
         } finally {
@@ -170,8 +179,9 @@ public class MigrationServiceImpl implements MigrationService {
 
     private void processColumnFamily(SessionImpl session, String keySpace,
                                      String columnFamily, PropertyMigrator[] migrators,
-                                     KeyExtractor keyExtractor, MigrationLogger migrationLogger)
-            throws StorageClientException, AccessDeniedException {
+                                     KeyExtractor keyExtractor, MigrationLogger migrationLogger,
+                                     Indexer indexer)
+            throws StorageClientException, AccessDeniedException, SQLException {
         long total = session.getClient().allCount(keySpace, columnFamily);
         LOGGER.info("Processing {} objects in column family {}", new Object[]{total, columnFamily});
         if (total > 0) {
@@ -179,13 +189,15 @@ public class MigrationServiceImpl implements MigrationService {
             try {
                 long currentRow = 0;
                 long changedRows = 0;
+                Map<String, PreparedStatement> statementCache = Maps.newHashMap();
                 while (allObjects.hasNext()) {
                     SparseRow row = allObjects.next();
                     currentRow++;
                     if (currentRow % 1000 == 0) {
                         LOGGER.info("Processed {}% remaining {} ", new Object[]{((currentRow * 100) / total), total - currentRow});
                     }
-                    boolean rowChanged = processRow(session, keySpace, columnFamily, migrators, keyExtractor, row, migrationLogger);
+                    boolean rowChanged = processRow(session, keySpace, columnFamily, migrators,
+                            keyExtractor, row, migrationLogger, indexer, statementCache);
                     if (rowChanged) {
                         changedRows++;
                     }
@@ -202,7 +214,9 @@ public class MigrationServiceImpl implements MigrationService {
 
     private boolean processRow(SessionImpl session, String keySpace, String columnFamily,
                                PropertyMigrator[] migrators, KeyExtractor keyExtractor, SparseRow row,
-                               MigrationLogger migrationLogger) throws StorageClientException {
+                               MigrationLogger migrationLogger,
+                               Indexer indexer, Map<String, PreparedStatement> statementCache)
+            throws StorageClientException, SQLException {
         boolean rowChanged = false;
 
         Map<String, Object> properties = row.getProperties();
@@ -231,6 +245,11 @@ public class MigrationServiceImpl implements MigrationService {
                     // actually persist changes if this isn't a dry run
                     session.getClient().insert(keySpace, columnFamily, key, properties,
                             false);
+                }
+            } else {
+                if (!dryRun && indexer != null) {
+                    // reindex if we have an indexer (only for jdbc storage clients)
+                    indexer.index(statementCache, keySpace, columnFamily, key, rowID, properties);
                 }
             }
         } else {
