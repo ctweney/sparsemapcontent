@@ -18,14 +18,23 @@
 
 package org.sakaiproject.nakamura.api.lite;
 
-import org.sakaiproject.nakamura.api.lite.Upgrader;
+@SuppressWarnings({"UnusedDeclaration"})
+public interface MigrationService {
 
-import java.util.List;
+  /**
+   * Perform upgrades by running the upgrade() methods of all registered PropertyMigrator instances.
+   * @throws Exception if an unrecoverable error occurred.
+   */
+  void doMigration() throws Exception;
 
-public interface UpgradeTracker<T> {
+  /**
+   * @param dryRun true if you want to just verify; false if you want to really change data. Default is true.
+   */
+  void setDryRun(boolean dryRun);
 
-  List<Upgrader<T>> getUpgraders();
-
-  void register(Upgrader<T> upgrader);
+  /**
+   * @param verify true if you want to verify using PropertyMigrator.verify(). Default is false.
+   */
+  void setVerify(boolean verify);
 
 }
