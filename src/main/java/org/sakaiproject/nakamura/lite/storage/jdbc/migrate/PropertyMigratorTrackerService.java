@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Vector;
 
 @Component(immediate = true, metatype = true)
 @Service(value = PropertyMigratorTracker.class)
@@ -21,25 +22,19 @@ public class PropertyMigratorTrackerService implements PropertyMigratorTracker {
 
     private static final PropertyMigratorComparator COMPARATOR = new PropertyMigratorComparator();
 
-    private final List<PropertyMigrator> propertyMigrators = new ArrayList<PropertyMigrator>();
+    private final List<PropertyMigrator> propertyMigrators = new Vector<PropertyMigrator>();
 
     public PropertyMigrator[] getPropertyMigrators() {
-        synchronized (propertyMigrators) {
-            Collections.sort(this.propertyMigrators, COMPARATOR);
-            return propertyMigrators.toArray(new PropertyMigrator[propertyMigrators.size()]);
-        }
+        Collections.sort(this.propertyMigrators, COMPARATOR);
+        return propertyMigrators.toArray(new PropertyMigrator[propertyMigrators.size()]);
     }
 
     public void bind(PropertyMigrator pm) {
-        synchronized (propertyMigrators) {
-            propertyMigrators.add(pm);
-        }
+        propertyMigrators.add(pm);
     }
 
     public void unbind(PropertyMigrator pm) {
-        synchronized (propertyMigrators) {
-            propertyMigrators.remove(pm);
-        }
+        propertyMigrators.remove(pm);
     }
 
     private static class PropertyMigratorComparator implements Comparator<PropertyMigrator> {
