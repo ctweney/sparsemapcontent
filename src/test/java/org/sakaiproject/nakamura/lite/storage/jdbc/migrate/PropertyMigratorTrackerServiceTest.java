@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations under the License.
  */
 
-package org.sakaiproject.nakamura.lite.storage.jdbc.upgrade;
+package org.sakaiproject.nakamura.lite.storage.jdbc.migrate;
 
 import junit.framework.Assert;
 import org.junit.Before;
@@ -25,7 +25,6 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.sakaiproject.nakamura.api.lite.PropertyMigrator;
-import org.sakaiproject.nakamura.lite.storage.jdbc.migrate.PropertyMigratorTrackerService;
 
 public class PropertyMigratorTrackerServiceTest extends Assert {
 
@@ -69,10 +68,10 @@ public class PropertyMigratorTrackerServiceTest extends Assert {
         this.tracker.bind(firstMockMigrator);
 
         // see if tracker keeps them in sorted order
-        PropertyMigrator[] storedUpgraders = this.tracker.getPropertyMigrators();
-        assertEquals(firstMockMigrator, storedUpgraders[0]);
-        assertEquals(secondMockMigrator, storedUpgraders[1]);
-        assertEquals(nullMockMigrator, storedUpgraders[2]);
+        PropertyMigrator[] migrators = this.tracker.getPropertyMigrators();
+        assertEquals(firstMockMigrator, migrators[0]);
+        assertEquals(secondMockMigrator, migrators[1]);
+        assertEquals(nullMockMigrator, migrators[2]);
     }
 
     @Test

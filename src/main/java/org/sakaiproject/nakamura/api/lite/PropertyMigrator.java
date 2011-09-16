@@ -40,19 +40,19 @@ public interface PropertyMigrator {
     boolean migrate(String rowID, Map<String, Object> properties);
 
     /**
-     * Method used by tests to verify proper operation of this upgrader. Make sure that your implementation of
-     * verify() agrees with upgrade()!
+     * Method used by tests to verify proper operation of this migrator. Make sure that your implementation of
+     * verify() agrees with migrate()!
      *
      * @param rowID            The unique row ID of the object.
-     * @param beforeProperties A map of properties before the upgrade
-     * @param afterProperties  A map of properties after the upgrade
+     * @param beforeProperties A map of properties before the migration
+     * @param afterProperties  A map of properties after the migration
      * @return true if the afterProperties is a correct transformation of beforeProperties; false otherwise.
      */
     boolean verify(String rowID, Map<String, Object> beforeProperties, Map<String, Object> afterProperties);
 
     /**
-     * @return Integer used to sort this Upgrader relative to others; the UpgradeService will run upgrades
-     *         in ascending order. Return null if ordering doesn't matter to this upgrader. Upgraders with null
+     * @return Integer used to sort this PropertyMigrator relative to others; the MigrationService will run migrations
+     *         in ascending order. Return null if ordering doesn't matter to this migrator. Migrators with null
      *         order will run after all those with non-null order.
      */
     Integer getOrder();
