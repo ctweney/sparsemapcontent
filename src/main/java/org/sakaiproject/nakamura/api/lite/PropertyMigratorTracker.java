@@ -1,4 +1,4 @@
-package org.sakaiproject.nakamura.lite.storage.jdbc.migrate;
+package org.sakaiproject.nakamura.api.lite;
 
 import org.sakaiproject.nakamura.api.lite.PropertyMigrator;
 
