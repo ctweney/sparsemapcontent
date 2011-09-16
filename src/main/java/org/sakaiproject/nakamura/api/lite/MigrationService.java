@@ -23,6 +23,8 @@ public interface MigrationService {
 
   /**
    * Perform upgrades by running the upgrade() methods of all registered PropertyMigrator instances.
+   * @param dryRun True if you want to run the upgrade without actually changing data; false if you want data changes saved.
+   * @param verify True if you want to check upgraded data using the PropertyMigrator.verify() method.
    * @throws Exception if an unrecoverable error occurred.
    */
   void doMigration(boolean dryRun, boolean verify) throws Exception;
