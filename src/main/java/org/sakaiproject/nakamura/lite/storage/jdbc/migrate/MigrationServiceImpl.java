@@ -26,7 +26,6 @@ import org.sakaiproject.nakamura.api.lite.ClientPoolException;
 import org.sakaiproject.nakamura.api.lite.Configuration;
 import org.sakaiproject.nakamura.api.lite.MigrationService;
 import org.sakaiproject.nakamura.api.lite.PropertyMigrator;
-import org.sakaiproject.nakamura.api.lite.PropertyMigratorTracker;
 import org.sakaiproject.nakamura.api.lite.Repository;
 import org.sakaiproject.nakamura.api.lite.StorageClientException;
 import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
@@ -39,6 +38,7 @@ import org.sakaiproject.nakamura.lite.storage.DisposableIterator;
 import org.sakaiproject.nakamura.lite.storage.SparseRow;
 import org.sakaiproject.nakamura.lite.storage.jdbc.Indexer;
 import org.sakaiproject.nakamura.lite.storage.jdbc.JDBCStorageClient;
+import org.sakaiproject.nakamura.lite.storage.mem.MemoryStorageClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,6 +49,28 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * This component performs migration for JDBC only. It goes direct to the JDBC
+ * tables to get a lazy iterator of rowIDs direct from the StorageClient which
+ * it then updates one by one. In general this approach to migration is only
+ * suitable for the JDBC drivers since they are capable of producing a non in
+ * memory list of rowids, a migrator that targets the ColumDBs should probably
+ * use a MapReduce job to perform migration and avoid streaming all data through
+ * a single node over the network.
+ *
+ * At present, the migrator does not record if an item has been migrated. Which
+ * means if a migration operation is stopped it will have to be restarted from
+ * the beginning and records that have already been migrated will get
+ * re-processed. To put a restart facility in place care will need to taken to
+ * ensure that updates to existing rows and new rows are tracked as well as the
+ * rows that have already been processed. In addition a performant way of
+ * querying all objects to get a dense list of items to be migrated. Its not
+ * impossible but needs some careful thought to make it work on realistic
+ * datasets (think 100M records+, don't think 10K records)
+ *
+ * @author ieb
+ *
+ */
 @Component(immediate = true, enabled = true, metatype = true)
 @Service(value = MigrationService.class)
 public class MigrationServiceImpl implements MigrationService {
@@ -72,6 +94,16 @@ public class MigrationServiceImpl implements MigrationService {
             session = (SessionImpl) repository.loginAdministrative();
             String keySpace = configuration.getKeySpace();
             MigrationLogger migrationLogger = new MigrationLogger(session);
+
+            // make sure we're dealing with a supported storage client
+            // TODO: storage clients other than JDBC don't have a way to page over big result sets -- find a way
+            // for them to do that, and then this class can support migrations for them too.
+            if (! (session.getClient() instanceof JDBCStorageClient) &&
+                    ! ( session.getClient() instanceof MemoryStorageClient )) {
+                LOGGER.error("This class will only re-index content for JDBCStorageClients");
+                return;
+            }
+
             Indexer indexer = null;
             if (session.getClient() instanceof JDBCStorageClient) {
                 indexer = ((JDBCStorageClient) session.getClient()).getIndexer();
