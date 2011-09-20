@@ -200,7 +200,7 @@ public class MigrationServiceImpl implements MigrationService {
             }
             rowChanged = thisMigratorChanged || rowChanged;
             if (thisMigratorChanged) {
-                migrationLogger.log(migrator, rowID, originalProperties, properties);
+                migrationLogger.log(migrator);
                 LOGGER.info("Migrator {} changed row {} with verify {}, properties are now {}",
                         new Object[]{migrator.getClass().getName(), rowID, verify, properties});
             }

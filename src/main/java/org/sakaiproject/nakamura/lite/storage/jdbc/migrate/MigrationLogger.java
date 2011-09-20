@@ -18,6 +18,8 @@
 
 package org.sakaiproject.nakamura.lite.storage.jdbc.migrate;
 
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import org.sakaiproject.nakamura.api.lite.PropertyMigrator;
 import org.sakaiproject.nakamura.api.lite.Session;
 import org.sakaiproject.nakamura.api.lite.StorageClientException;
@@ -26,7 +28,6 @@ import org.sakaiproject.nakamura.api.lite.content.Content;
 
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -34,17 +35,13 @@ public class MigrationLogger {
 
     public static final String LOG_PATH = "/system/migrationlog";
 
-    public static final String PROPERTIES_BEFORE = "propertiesBefore";
-
-    public static final String PROPERTIES_AFTER = "propertiesAfter";
-
     public static final String DATE_READABLE = "migrationDate";
 
     public static final String DATE_MS = "migrationEpoch";
 
-    private Map<String, Map<String, Map<String, Object>>> logMap = new HashMap<String, Map<String, Map<String, Object>>>();
+    private Map<String, Map<String, Object>> logMap = Maps.newHashMap();
 
-    private Set<String> seenClasses = new HashSet<String>();
+    private Set<String> seenClasses = Sets.newHashSet();
 
     private Content logContent;
 
@@ -63,27 +60,22 @@ public class MigrationLogger {
         }
     }
 
-    public void log(PropertyMigrator migrator, String rowID,
-                    Map<String, Object> propertiesBefore, Map<String, Object> propertiesAfter) {
+    public void log(PropertyMigrator migrator) {
         String className = migrator.getClass().getName();
-        Map<String, Object> rowMap = new HashMap<String, Object>();
-        rowMap.put(PROPERTIES_BEFORE, propertiesBefore);
-        rowMap.put(PROPERTIES_AFTER, propertiesAfter);
-        long currentMS = System.currentTimeMillis();
-        rowMap.put(DATE_READABLE, new Date(currentMS));
-        rowMap.put(DATE_MS, currentMS);
-        Map<String, Map<String, Object>> classMap = this.logMap.get(className);
+        Map<String, Object> classMap = this.logMap.get(className);
         if (classMap == null) {
-            classMap = new HashMap<String, Map<String, Object>>();
+            classMap = Maps.newHashMap();
         }
-        classMap.put(rowID, rowMap);
+        long currentMS = System.currentTimeMillis();
+        classMap.put(DATE_READABLE, new Date(currentMS));
+        classMap.put(DATE_MS, currentMS);
         logMap.put(className, classMap);
         seenClasses.add(className);
     }
 
     public void write(Session session) throws StorageClientException, AccessDeniedException {
         for (String className : this.logMap.keySet()) {
-            Map<String, Map<String, Object>> rowMap = this.logMap.get(className);
+            Map<String, Object> rowMap = this.logMap.get(className);
             this.logContent.setProperty(className, rowMap);
         }
         session.getContentManager().update(this.logContent);

@@ -28,7 +28,6 @@ import org.sakaiproject.nakamura.lite.SessionImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
 import java.util.Map;
 
 public class MigrationLoggerTest {
@@ -62,35 +61,22 @@ public class MigrationLoggerTest {
     @Test
     public void testLogAndWrite() throws Exception {
         MigrationLogger migrationLogger = new MigrationLogger(this.session);
-        String rowID = "row1";
-        Map<String, Object> propsBefore = new HashMap<String, Object>();
-        propsBefore.put("prop1", "val1");
-        Map<String, Object> propsAfter = new HashMap<String, Object>();
-        propsAfter.put("prop2", "val2");
-        migrationLogger.log(migrator, rowID, propsBefore, propsAfter);
+        migrationLogger.log(migrator);
 
         migrationLogger.write(session);
         Content logContent = session.getContentManager().get(MigrationLogger.LOG_PATH);
         LOGGER.info(logContent.toString());
         Map<String, Object> classLog = (Map<String, Object>) logContent.getProperty(this.migrator.getClass().getName());
         Assert.assertNotNull(classLog);
-        Map<String, Object> rowLog = (Map<String, Object>) classLog.get("row1");
-        Assert.assertNotNull(rowLog);
-        Map<String, Object> rowPropsBefore = (Map<String, Object>) rowLog.get(MigrationLogger.PROPERTIES_BEFORE);
-        Assert.assertNotNull(rowPropsBefore);
+        Assert.assertNotNull(classLog.get(MigrationLogger.DATE_READABLE));
+        Assert.assertNotNull(classLog.get(MigrationLogger.DATE_MS));
+        Assert.assertTrue(migrationLogger.hasMigratorRun(this.migrator));
 
         // try a second log-and-write cycle to make sure old data stays
-        String row2 = "row2";
-        migrationLogger.log(migrator, row2, propsBefore, propsAfter);
+        migrationLogger.log(migrator);
         migrationLogger.write(session);
         logContent = session.getContentManager().get(MigrationLogger.LOG_PATH);
         LOGGER.info(logContent.toString());
-        classLog = (Map<String, Object>) logContent.getProperty(this.migrator.getClass().getName());
-        Map<String, Object> rowLog2 = (Map<String, Object>) classLog.get("row2");
-        Assert.assertNotNull(rowLog2);
-        Map<String, Object> rowLog1 = (Map<String, Object>) classLog.get("row1");
-        Assert.assertNotNull(rowLog1);
-
         Assert.assertTrue(migrationLogger.hasMigratorRun(this.migrator));
     }
 }
