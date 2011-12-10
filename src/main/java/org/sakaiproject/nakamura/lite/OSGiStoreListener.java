@@ -14,7 +14,10 @@ import org.sakaiproject.nakamura.api.lite.accesscontrol.Security;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.util.Dictionary;
+import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.Map;
 
@@ -113,8 +116,9 @@ public class OSGiStoreListener implements StoreListener {
         LOGGER.debug("Logout {} {} ", userid, sessionID);
     }
 
-    private void postEvent(String topic, String path, String user, String resourceType,  Map<String, Object> beforeEvent, String[] attributes) {
+    private void postEvent(String topic, String path, String user, String resourceType,  Map<String, Object> beforeEvent, String[] attributes) {        
         final Dictionary<String, Object> properties = new Hashtable<String, Object>();
+
         if (attributes != null) {
             for (String attribute : attributes) {
                 String[] parts = StringUtils.split(attribute, ":", 2);
@@ -137,8 +141,45 @@ public class OSGiStoreListener implements StoreListener {
         if ( beforeEvent != null) {
             properties.put(BEFORE_EVENT_PROPERTY, beforeEvent);
         }
+
+
+        if (("sakai/pooled-content").equals(resourceType)) {
+            try {
+                throw new RuntimeException("XYZ");
+            } catch (RuntimeException e) {
+                LOGGER.info("Event on sakai/pooled-content at path " + path 
+                        + ", topic = " + topic
+                        + ", properties = " + dumpProperties(properties), e);
+                StringWriter sw = new StringWriter();
+                e.printStackTrace(new PrintWriter(sw));
+                String stack = sw.toString();
+                properties.put("stackTrace", stack);
+            }
+        }
+
         eventAdmin.postEvent(new Event(topic, properties));
 
+    }
+
+    private String dumpProperties(Dictionary<String, Object> properties) {
+        StringBuilder sb = new StringBuilder();
+        Enumeration<String> keys = properties.keys();
+        while (keys.hasMoreElements()) {
+            String key = keys.nextElement();
+            Object value = properties.get(key);
+            if (value instanceof String[]) {
+                sb.append(key).append("=[");
+                String[] strVals = (String[]) value;
+                for (String str : strVals) {
+                    sb.append(str).append(",");
+                }
+                sb.append("], ");
+            } else {
+
+                sb.append(key).append("=").append(value).append(", ");
+            }
+        }
+        return sb.toString();
     }
 
 }
