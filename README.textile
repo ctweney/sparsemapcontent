@@ -3,15 +3,15 @@ h1. Map Content System.
 Development on Sparse Map on this branch has now ceased.
 
 The Sakai OAE managed project team decided to fork this code base and take full responsibility
-for future development within their own project on (or arround) 17th March 2011. This branch (currently
+for future development within their own project on (or arround) 17th February 2012. This branch (currently
 the master branch) has been left in tact to allow that team to issue pull requests back into this code
 base should they wish to.
 
-The last release from this code based was version 1.5 which was released on 20th March 2011 to give the 
+The last release from this code based was version 1.5 which was released on 20th February 2012 to give the 
 Sakai OAE managed project a future release to bind to if they wanted to.
 
-As detailed in Issue #166 development from 17th March 2011 will continue in a sepeate branch 
-https://github.com/ieb/sparsemapcontent/tree/postOAEFork
+As detailed in Issue #166 development from 17th February 2012 will continue in a sepeate branch 
+https://github.com/ieb/sparsemapcontent/tree/postOAEfork
 
 Please see the readme in that branch for more details.
 
