@@ -11,7 +11,7 @@ The last release from this code based was version 1.5 which was released on 20th
 Sakai OAE managed project a future release to bind to if they wanted to.
 
 As detailed in Issue #166 development from 17th February 2012 will continue in a sepeate branch 
-https://github.com/ieb/sparsemapcontent/tree/postOAEfork
+"postOAEFork Branch":https://github.com/ieb/sparsemapcontent/tree/postOAEfork
 
 Please see the readme in that branch for more details.
 
