@@ -4,8 +4,9 @@ Development on Sparse Map on this branch has now ceased.
 
 The Sakai OAE managed project team decided to fork this code base and take full responsibility
 for future development within their own project on (or arround) 17th February 2012. This branch (currently
-the master branch) has been left in tact to allow that team to issue pull requests back into this code
-base should they wish to.
+the master branch) has been left intact to allow that team to issue pull requests back into this code
+base should they wish to. I wish the Sakai OAE managed project all the best and will continue to monitor
+and try and help where I can.
 
 The last release from this code based was version 1.5 which was released on 20th February 2012 to give the 
 Sakai OAE managed project a future release to bind to if they wanted to.
@@ -14,4 +15,5 @@ As detailed in Issue #166 development from 17th February 2012 will continue in a
 "postOAEFork Branch":https://github.com/ieb/sparsemapcontent/tree/postOAEfork
 
 Please see the readme in that branch for more details.
+
 
