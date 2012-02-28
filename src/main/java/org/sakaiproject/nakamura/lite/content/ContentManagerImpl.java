@@ -17,6 +17,47 @@
  */
 package org.sakaiproject.nakamura.lite.content;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMap.Builder;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
+import com.google.common.collect.Sets;
+import org.sakaiproject.nakamura.api.lite.CacheHolder;
+import org.sakaiproject.nakamura.api.lite.Configuration;
+import org.sakaiproject.nakamura.api.lite.RemoveProperty;
+import org.sakaiproject.nakamura.api.lite.StorageClientException;
+import org.sakaiproject.nakamura.api.lite.StorageClientUtils;
+import org.sakaiproject.nakamura.api.lite.StorageConstants;
+import org.sakaiproject.nakamura.api.lite.StoreListener;
+import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessControlManager;
+import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
+import org.sakaiproject.nakamura.api.lite.accesscontrol.Permissions;
+import org.sakaiproject.nakamura.api.lite.accesscontrol.PrincipalTokenResolver;
+import org.sakaiproject.nakamura.api.lite.accesscontrol.Security;
+import org.sakaiproject.nakamura.api.lite.authorizable.User;
+import org.sakaiproject.nakamura.api.lite.content.ActionRecord;
+import org.sakaiproject.nakamura.api.lite.content.Content;
+import org.sakaiproject.nakamura.api.lite.content.ContentManager;
+import org.sakaiproject.nakamura.api.lite.util.PreemptiveIterator;
+import org.sakaiproject.nakamura.lite.CachingManagerImpl;
+import org.sakaiproject.nakamura.lite.storage.spi.DisposableIterator;
+import org.sakaiproject.nakamura.lite.storage.spi.SparseRow;
+import org.sakaiproject.nakamura.lite.storage.spi.StorageClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+
 import static org.sakaiproject.nakamura.lite.content.InternalContent.BLOCKID_FIELD;
 import static org.sakaiproject.nakamura.lite.content.InternalContent.BODY_CREATED_BY_FIELD;
 import static org.sakaiproject.nakamura.lite.content.InternalContent.BODY_CREATED_FIELD;
@@ -42,48 +83,6 @@ import static org.sakaiproject.nakamura.lite.content.InternalContent.TRUE;
 import static org.sakaiproject.nakamura.lite.content.InternalContent.UUID_FIELD;
 import static org.sakaiproject.nakamura.lite.content.InternalContent.VERSION_HISTORY_ID_FIELD;
 import static org.sakaiproject.nakamura.lite.content.InternalContent.VERSION_NUMBER_FIELD;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-
-import com.google.common.collect.Ordering;
-import org.sakaiproject.nakamura.api.lite.CacheHolder;
-import org.sakaiproject.nakamura.api.lite.Configuration;
-import org.sakaiproject.nakamura.api.lite.RemoveProperty;
-import org.sakaiproject.nakamura.api.lite.StorageClientException;
-import org.sakaiproject.nakamura.api.lite.StorageClientUtils;
-import org.sakaiproject.nakamura.api.lite.StorageConstants;
-import org.sakaiproject.nakamura.api.lite.StoreListener;
-import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessControlManager;
-import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
-import org.sakaiproject.nakamura.api.lite.accesscontrol.Permissions;
-import org.sakaiproject.nakamura.api.lite.accesscontrol.PrincipalTokenResolver;
-import org.sakaiproject.nakamura.api.lite.accesscontrol.Security;
-import org.sakaiproject.nakamura.api.lite.authorizable.User;
-import org.sakaiproject.nakamura.api.lite.content.ActionRecord;
-import org.sakaiproject.nakamura.api.lite.content.Content;
-import org.sakaiproject.nakamura.api.lite.content.ContentManager;
-import org.sakaiproject.nakamura.api.lite.util.PreemptiveIterator;
-import org.sakaiproject.nakamura.lite.CachingManagerImpl;
-import org.sakaiproject.nakamura.lite.storage.spi.DisposableIterator;
-import org.sakaiproject.nakamura.lite.storage.spi.SparseRow;
-import org.sakaiproject.nakamura.lite.storage.spi.StorageClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableMap.Builder;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 
 /**
  * <pre>
@@ -1021,5 +1020,19 @@ public class ContentManagerImpl extends CachingManagerImpl implements ContentMan
         accessControlManager.clearRequestPrincipalResolver();
     }
 
+  private void invalidateCacheForHierarchy(InternalContent tip)
+          throws StorageClientException, AccessDeniedException {
+    String parentPath = StorageClientUtils.getParentObjectPath(tip.getPath());
+    if ( parentPath != null && ! ( "/".equals(parentPath) ) && ! ("".equals(parentPath))) {
+      Content parentContent = get(parentPath);
+      if ( parentContent != null && ! ( parentContent.getId().equals(tip.getId()))) {
+
+
+        //  find(keySpace, columnFamily, ImmutableMap.of(Content.PARENT_HASH_FIELD, (Object)hash, StorageConstants.CUSTOM_STATEMENT_SET, "listchildren", StorageConstants.CACHEABLE, true), cachingManager);
+
+        invalidateCacheForHierarchy(parentContent);
+      }
+    }
+  }
 
 }

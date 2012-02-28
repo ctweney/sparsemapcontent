@@ -50,6 +50,7 @@ import org.sakaiproject.nakamura.api.lite.StorageConstants;
 import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
 import org.sakaiproject.nakamura.api.lite.content.Content;
 import org.sakaiproject.nakamura.api.lite.util.PreemptiveIterator;
+import org.sakaiproject.nakamura.lite.content.InternalContent;
 import org.sakaiproject.nakamura.lite.storage.spi.DirectCacheAccess;
 import org.sakaiproject.nakamura.lite.storage.spi.Disposable;
 import org.sakaiproject.nakamura.lite.storage.spi.DisposableIterator;
@@ -272,6 +273,22 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
         }
         return StorageClientUtils.encode(hasher.digest(ridkey));
     }
+
+
+  private void invalidateCacheForHierarchy(InternalContent tip)
+          throws StorageClientException, AccessDeniedException {
+    String parentPath = StorageClientUtils.getParentObjectPath(tip.getPath());
+    if ( parentPath != null && ! ( "/".equals(parentPath) ) && ! ("".equals(parentPath))) {
+      Content parentContent = get(parentPath);
+      if ( parentContent != null && ! ( parentContent.getId().equals(tip.getId()))) {
+
+
+        //  find(keySpace, columnFamily, ImmutableMap.of(Content.PARENT_HASH_FIELD, (Object)hash, StorageConstants.CUSTOM_STATEMENT_SET, "listchildren", StorageConstants.CACHEABLE, true), cachingManager);
+
+        invalidateCacheForHierarchy(parentContent);
+      }
+    }
+  }
 
     public void insert(String keySpace, String columnFamily, String key, Map<String, Object> values, boolean probablyNew)
             throws StorageClientException {
