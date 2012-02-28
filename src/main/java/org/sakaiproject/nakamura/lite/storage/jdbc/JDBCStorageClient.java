@@ -17,27 +17,12 @@
  */
 package org.sakaiproject.nakamura.lite.storage.jdbc;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.UTFDataFormatException;
-import java.io.UnsupportedEncodingException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.text.MessageFormat;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
-
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMap.Builder;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import org.apache.commons.lang.StringUtils;
 import org.sakaiproject.nakamura.api.lite.CacheHolder;
 import org.sakaiproject.nakamura.api.lite.ClientPoolException;
@@ -65,12 +50,26 @@ import org.sakaiproject.nakamura.lite.storage.spi.types.Types;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableMap.Builder;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.UTFDataFormatException;
+import java.io.UnsupportedEncodingException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.text.MessageFormat;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
 
@@ -122,7 +121,7 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
             "ac:_:parenthash");
     private static final Map<String, String> COLUMN_NAME_MAPPING = ImmutableMap.of("_:parenthash","parenthash");
 
-    private JDBCStorageClientPool jcbcStorageClientConnection;
+    private JDBCStorageClientPool jdbcStorageClientConnection;
     private Map<String, Object> sqlConfig;
     private boolean active;
     private StreamedContentHelper streamedContentHelper;
@@ -155,7 +154,7 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
         if ( indexColumns == null ) {
             throw new StorageClientException("Null Index Colums, cant create Client");
         }
-        this.jcbcStorageClientConnection = jdbcStorageClientConnectionPool;
+        this.jdbcStorageClientConnection = jdbcStorageClientConnectionPool;
         streamedContentHelper = new FileStreamContentHelper(this, properties);
 
         this.sqlConfig = sqlConfig;
@@ -215,15 +214,29 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
         Map<String, Object> result = Maps.newHashMap();
         PreparedStatement selectStringRow = null;
         try {
-            selectStringRow = getStatement(keySpace, columnFamily, SQL_BLOCK_SELECT_ROW, rid, null);
-            inc("A");
-            selectStringRow.clearWarnings();
-            selectStringRow.clearParameters();
-            selectStringRow.setString(1, rid);
-            body = selectStringRow.executeQuery();
-            inc("B");
-            if (body.next()) {
-                Types.loadFromStream(rid, result, body.getBinaryStream(1), columnFamily);
+            boolean hasRetried = false;
+            for (;;) {
+                try {
+                    selectStringRow = getStatement(keySpace, columnFamily, SQL_BLOCK_SELECT_ROW, rid, null);
+                    inc("A");
+                    selectStringRow.clearWarnings();
+                    selectStringRow.clearParameters();
+                    selectStringRow.setString(1, rid);
+                    body = selectStringRow.executeQuery();
+                    inc("B");
+                    if (body.next()) {
+                        Types.loadFromStream(rid, result, body.getBinaryStream(1), columnFamily);
+                    }
+                    break;
+                } catch (SQLException ex) {
+                    if (!hasRetried) {
+                        resetConnection(null);
+                        hasRetried = true;
+                    } else {
+                        throw ex;
+                    }
+
+                }
             }
         } catch (SQLException e) {
             LOGGER.warn("Failed to perform get operation on  " + keySpace + ":" + columnFamily
@@ -421,8 +434,8 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
             endBlock(autoCommit);
         } catch (SQLException e) {
             abandonBlock(autoCommit);
-            LOGGER.warn("Failed to perform insert/update operation on {}:{}:{} ", new Object[] {
-                    keySpace, columnFamily, key }, e);
+            resetConnection(statementCache);
+            LOGGER.warn("Failed to perform insert/update operation on {}:{}:{} ", new Object[] { keySpace, columnFamily, key }, e);
             throw new StorageClientException(e.getMessage(), e);
         } catch (IOException e) {
             abandonBlock(autoCommit);
@@ -452,7 +465,7 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
     private void abandonBlock(boolean autoCommit) {
         if (autoCommit) {
             try {
-                Connection connection = jcbcStorageClientConnection.getConnection();
+                Connection connection = jdbcStorageClientConnection.getConnection();
                 connection.rollback();
                 connection.setAutoCommit(autoCommit);
                 if ( storageClientListener != null ) {
@@ -466,7 +479,7 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
 
     private void endBlock(boolean autoCommit) throws SQLException {
         if (autoCommit) {
-            Connection connection = jcbcStorageClientConnection.getConnection();
+            Connection connection = jdbcStorageClientConnection.getConnection();
             connection.commit();
             connection.setAutoCommit(autoCommit);
             if ( storageClientListener != null ) {
@@ -476,7 +489,7 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
     }
 
     private boolean startBlock() throws SQLException {
-        Connection connection = jcbcStorageClientConnection.getConnection();
+        Connection connection = jdbcStorageClientConnection.getConnection();
         boolean autoCommit = connection.getAutoCommit();
         connection.setAutoCommit(false);
         if ( storageClientListener != null ) {
@@ -518,8 +531,8 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
             endBlock(autoCommit);
         } catch (SQLException e) {
             abandonBlock(autoCommit);
-            LOGGER.warn("Failed to perform delete operation on {}:{}:{} ", new Object[] { keySpace,
-                    columnFamily, key }, e);
+            resetConnection(null);
+            LOGGER.warn("Failed to perform delete operation on {}:{}:{} ", new Object[] { keySpace, columnFamily, key }, e);
             throw new StorageClientException(e.getMessage(), e);
         } finally {
             close(deleteStringRow, "deleteStringRow");
@@ -529,7 +542,7 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
     
     public void close() {
         passivate();
-        jcbcStorageClientConnection.releaseClient(this);
+        jdbcStorageClientConnection.releaseClient(this);
     }
     
     public void destroy() {
@@ -596,9 +609,7 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
                 if (statementCache != null && statementCache.containsKey(k)) {
                     return statementCache.get(k);
                 } else {
-                    
-                    PreparedStatement pst = jcbcStorageClientConnection.getConnection()
-                            .prepareStatement((String) sqlConfig.get(k));
+                    PreparedStatement pst = jdbcStorageClientConnection.getConnection().prepareStatement((String) sqlConfig.get(k));
                     if (statementCache != null) {
                         inc("cachedStatement");
                         statementCache.put(k, pst);
@@ -616,12 +627,12 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
             if ( statementCache.containsKey(sql)) {
                 pst =  statementCache.get(sql);
             } else {
-                pst = jcbcStorageClientConnection.getConnection().prepareStatement(sql);
+                pst = jdbcStorageClientConnection.getConnection().prepareStatement(sql);
                 inc("cachedStatement");
                 statementCache.put(sql, pst);
             }
         } else {
-            pst = jcbcStorageClientConnection.getConnection().prepareStatement(sql);            
+            pst = jdbcStorageClientConnection.getConnection().prepareStatement(sql);
         }
         return pst;
     }
@@ -659,10 +670,9 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
         checkActive(false);
         Statement statement = null;
         try {
-            statement = jcbcStorageClientConnection.getConnection().createStatement();
-            inc("vaidate");
-
-            statement.execute(getSql(SQL_VALIDATE));
+            // just get a connection, that will be enough to validate.
+            // this is not a perfect solution. A better solution would be to handle the failiure in the client code on update.
+            statement = jdbcStorageClientConnection.getConnection().createStatement();
             return true;
         } catch (SQLException e) {
             LOGGER.warn("Failed to validate connection ", e);
@@ -670,7 +680,6 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
         } finally {
             try {
                 statement.close();
-                dec("vaidate");
             } catch (Throwable e) {
                 LOGGER.debug("Failed to close statement in validate ", e);
             }
@@ -697,7 +706,7 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
         Statement statement = null;
         try {
 
-            statement = jcbcStorageClientConnection.getConnection().createStatement();
+            statement = jdbcStorageClientConnection.getConnection().createStatement();
             try {
                 statement.execute(getSql(SQL_CHECKSCHEMA));
                 inc("schema");
@@ -814,7 +823,7 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
 
     protected Connection getConnection() throws StorageClientException, SQLException {
         checkActive();
-        return jcbcStorageClientConnection.getConnection();
+        return jdbcStorageClientConnection.getConnection();
     }
 
     public DisposableIterator<Map<String, Object>> listChildren(String keySpace, String columnFamily, String key, DirectCacheAccess cachingManager) throws StorageClientException {
@@ -850,7 +859,7 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
         ResultSet trs = null;
         try {
             LOGGER.debug("Preparing {} ", sql);
-            tpst = jcbcStorageClientConnection.getConnection().prepareStatement(sql);
+            tpst = jdbcStorageClientConnection.getConnection().prepareStatement(sql);
             inc("iterator");
             tpst.clearParameters();
 
@@ -933,6 +942,7 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
                 }
             });
         } catch (SQLException e) {
+            resetConnection(null);
             LOGGER.error(e.getMessage(), e);
             throw new StorageClientException(e.getMessage() + " SQL Statement was " + sql,
                     e);
@@ -958,6 +968,7 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
         }
 
    }
+
 
     void dec(String key) {
         AtomicInteger cn = counters.get(key);
@@ -1003,6 +1014,14 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
             LOGGER.debug("Failed to close prepared set, ok to ignore this message ", e);
         }
     }
+    
+    void resetConnection(Map<String, PreparedStatement> statementCache) {
+        if ( statementCache != null ) {
+            closeStatementCache(statementCache);
+        }
+        jdbcStorageClientConnection.resetConnection();
+    }
+
 
     public void closeStatementCache(Map<String, PreparedStatement> statementCache) {
         for (PreparedStatement pst : statementCache.values()) {
@@ -1032,7 +1051,7 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
         PreparedStatement selectColumnsPst = null;
         PreparedStatement insertColumnsPst = null;
         ResultSet rs = null;
-        Connection connection = jcbcStorageClientConnection.getConnection();
+        Connection connection = jdbcStorageClientConnection.getConnection();
         Statement statement = null;
         try {
             selectColumnsPst = connection.prepareStatement(selectColumns);
@@ -1194,7 +1213,7 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
         ResultSet trs = null;
         try {
             LOGGER.debug("Preparing {} ", sql);
-            tpst = jcbcStorageClientConnection.getConnection().prepareStatement(sql);
+            tpst = jdbcStorageClientConnection.getConnection().prepareStatement(sql);
             inc("iterator");
             tpst.clearParameters();
 
@@ -1213,6 +1232,7 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
             } 
             return 0;
         } catch (SQLException e) {
+            resetConnection(null);
             LOGGER.error(e.getMessage(), e);
             throw new StorageClientException(e.getMessage() + " SQL Statement was " + sql,
                     e);
@@ -1242,8 +1262,8 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
     }
 
     public Map<String, CacheHolder> getQueryCache() {
-        StorageCacheManager storageCacheManager = this.jcbcStorageClientConnection.getStorageCacheManager();
-        if ( storageCacheManager != null ) {
+        StorageCacheManager storageCacheManager = this.jdbcStorageClientConnection.getStorageCacheManager();
+        if (storageCacheManager != null) {
             return storageCacheManager.getCache("sparseQueryCache");
         }
         return null;
