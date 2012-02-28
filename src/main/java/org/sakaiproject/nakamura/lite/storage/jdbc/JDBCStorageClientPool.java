@@ -78,7 +78,7 @@ public class JDBCStorageClientPool extends AbstractClientConnectionPool {
      * Clients should provide an implementation of NamedCacheManager in preference to this cache manager. 
      */
     @Reference
-    private StorageCacheManager storageManagerCache;
+    public StorageCacheManager storageManagerCache;
 
 
 
