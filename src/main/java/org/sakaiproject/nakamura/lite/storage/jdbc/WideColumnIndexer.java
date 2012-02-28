@@ -619,6 +619,7 @@ public class WideColumnIndexer extends AbstractIndexer implements CachingIndexer
                 return sb.toString();
             }
         }
+        return null;
     }
 
     private DisposableIterator<Map<String, Object>> cachedFind(String keySpace,

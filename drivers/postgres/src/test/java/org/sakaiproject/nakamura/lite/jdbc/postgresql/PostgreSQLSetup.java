@@ -32,7 +32,6 @@ public class PostgreSQLSetup {
         try {
             JDBCStorageClientPool connectionPool = new JDBCStorageClientPool();
             connectionPool.storageManagerCache = new DummyStorageCacheManager();
-            connectionPool.statsService = new StatsServiceImpl();
             Builder<String, Object> b = ImmutableMap.builder();
             b.put(JDBCStorageClientPool.CONNECTION_URL,"jdbc:postgresql://localhost/nak");
             b.put(JDBCStorageClientPool.JDBC_DRIVER, "org.postgresql.Driver");
