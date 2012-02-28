@@ -31,7 +31,6 @@ public class DerbySetup {
     private synchronized static JDBCStorageClientPool createClientPool(Configuration configuration, String location) {
         try {
             JDBCStorageClientPool connectionPool = new JDBCStorageClientPool();
-            connectionPool.statsService = new StatsServiceImpl();
             connectionPool.storageManagerCache = new DummyStorageCacheManager();
             Builder<String, Object> configBuilder = ImmutableMap.builder();
             if ( location == null ) {

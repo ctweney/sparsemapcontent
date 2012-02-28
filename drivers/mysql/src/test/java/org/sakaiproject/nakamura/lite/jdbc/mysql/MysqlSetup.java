@@ -31,7 +31,6 @@ public class MysqlSetup {
     public synchronized static JDBCStorageClientPool createClientPool(Configuration configuration) {
         try {
             JDBCStorageClientPool connectionPool = new JDBCStorageClientPool();
-            connectionPool.statsService = new StatsServiceImpl();
             connectionPool.storageManagerCache = new DummyStorageCacheManager();
             Builder<String, Object> b = ImmutableMap.builder();
             b.put(JDBCStorageClientPool.CONNECTION_URL,"jdbc:mysql://127.0.0.1:3306/sakai22?useUnicode=true&amp;characterEncoding=UTF-8");
