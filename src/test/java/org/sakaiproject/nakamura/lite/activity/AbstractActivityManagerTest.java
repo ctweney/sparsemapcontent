@@ -23,7 +23,6 @@ import com.google.common.collect.Maps;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.sakaiproject.nakamura.api.lite.CacheHolder;
 import org.sakaiproject.nakamura.api.lite.Configuration;
 import org.sakaiproject.nakamura.api.lite.StorageClientException;
 import org.sakaiproject.nakamura.api.lite.accesscontrol.AccessDeniedException;
@@ -38,7 +37,6 @@ import org.sakaiproject.nakamura.lite.accesscontrol.PrincipalValidatorResolverIm
 import org.sakaiproject.nakamura.lite.authorizable.AuthorizableActivator;
 import org.sakaiproject.nakamura.lite.content.AbstractContentManagerTest;
 import org.sakaiproject.nakamura.lite.content.ContentManagerImpl;
-import org.sakaiproject.nakamura.lite.storage.ConcurrentLRUMap;
 import org.sakaiproject.nakamura.lite.storage.StorageClient;
 import org.sakaiproject.nakamura.lite.storage.StorageClientPool;
 import org.slf4j.Logger;
@@ -50,11 +48,10 @@ import java.util.Map;
 public abstract class AbstractActivityManagerTest {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractContentManagerTest.class);
-    protected StorageClient client;
-    protected ConfigurationImpl configuration;
-    protected StorageClientPool clientPool;
-    protected Map<String, CacheHolder> sharedCache = new ConcurrentLRUMap<String, CacheHolder>(1000);
-    protected PrincipalValidatorResolver principalValidatorResolver = new PrincipalValidatorResolverImpl();
+
+    private ActivityManagerImpl activityManager;
+
+    private ContentManagerImpl contentManager;
 
     @Before
     public void before() throws StorageClientException, AccessDeniedException, ClassNotFoundException, IOException {
@@ -64,13 +61,27 @@ public abstract class AbstractActivityManagerTest {
         properties.put("acl-column-family", "ac");
         properties.put("authorizable-column-family", "au");
         properties.put("content-column-family", "cn");
-        configuration = new ConfigurationImpl();
+        ConfigurationImpl configuration = new ConfigurationImpl();
         configuration.activate(properties);
-        clientPool = getClientPool(configuration);
-        client = clientPool.getClient();
+        StorageClientPool clientPool = getClientPool(configuration);
+        StorageClient client = clientPool.getClient();
         AuthorizableActivator authorizableActivator = new AuthorizableActivator(client,
                 configuration);
         authorizableActivator.setup();
+        PrincipalValidatorResolver principalValidatorResolver = new PrincipalValidatorResolverImpl();
+
+        AuthenticatorImpl AuthenticatorImpl = new AuthenticatorImpl(client, configuration, null);
+        User currentUser = AuthenticatorImpl.authenticate("admin", "admin");
+
+        AccessControlManagerImpl accessControlManager = new AccessControlManagerImpl(client,
+                currentUser, configuration, null, new LoggingStorageListener(), principalValidatorResolver);
+
+        activityManager = new ActivityManagerImpl(client, accessControlManager,
+                configuration, null, new LoggingStorageListener());
+
+        contentManager = new ContentManagerImpl(client, accessControlManager,
+                configuration, null, new LoggingStorageListener());
+
         LOGGER.info("Setup Complete");
     }
 
@@ -78,21 +89,12 @@ public abstract class AbstractActivityManagerTest {
 
     @Test
     public void testActivitySeparateFromContent() throws StorageClientException, AccessDeniedException {
-        AuthenticatorImpl AuthenticatorImpl = new AuthenticatorImpl(client, configuration, null);
-        User currentUser = AuthenticatorImpl.authenticate("admin", "admin");
 
-        AccessControlManagerImpl accessControlManager = new AccessControlManagerImpl(client,
-                currentUser, configuration, null, new LoggingStorageListener(), principalValidatorResolver);
-
-        ActivityManagerImpl activityManager = new ActivityManagerImpl(client, accessControlManager,
-                configuration, null, new LoggingStorageListener());
-        activityManager.update(new Content("/testActivity", ImmutableMap.of("prop1", (Object) "value1")));
+        activityManager.update(new Content("/testActivity", ImmutableMap.<String, Object>of("prop1", "value1")));
         Content activity = activityManager.get("/testActivity");
         Assert.assertEquals("/testActivity", activity.getPath());
 
         // to make sure activity is stored in separate space from content
-        ContentManagerImpl contentManager = new ContentManagerImpl(client, accessControlManager,
-                configuration, null, new LoggingStorageListener());
         Content content = contentManager.get("/testActivity");
         Assert.assertNull(content);
 
@@ -104,4 +106,15 @@ public abstract class AbstractActivityManagerTest {
         Assert.assertNull(actContent);
     }
 
+    @Test
+    public void testChildren() throws Exception {
+        activityManager.update(new Content("/some/multi/level/path", ImmutableMap.<String, Object>of("prop", "val")));
+        Content path = activityManager.get("/some/multi/level/path");
+        Assert.assertNotNull(path);
+        Content level = activityManager.get("/some/multi/level");
+        Assert.assertNotNull(level);
+        Content levelChild = level.listChildren().iterator().next();
+        Assert.assertNotNull(levelChild);
+        Assert.assertEquals("/some/multi/level/path", levelChild.getPath());
+    }
 }

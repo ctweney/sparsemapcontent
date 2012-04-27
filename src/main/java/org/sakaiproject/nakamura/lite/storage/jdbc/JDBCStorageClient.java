@@ -116,11 +116,14 @@ public class JDBCStorageClient implements StorageClient, RowHasher, Disposer {
     static final Set<String> AUTO_INDEX_COLUMNS_TYPES = ImmutableSet.of(
             "cn:_:parenthash=String",
             "au:_:parenthash=String",
-            "ac:_:parenthash=String");
+            "ac:_:parenthash=String",
+            "act:_:parenthash=String");
     static final Set<String> AUTO_INDEX_COLUMNS = ImmutableSet.of(
             "cn:_:parenthash",
             "au:_:parenthash",
-            "ac:_:parenthash");
+            "ac:_:parenthash",
+            "act:_:parenthash");
+
     private static final Map<String, String> COLUMN_NAME_MAPPING = ImmutableMap.of("_:parenthash","parenthash");
 
     private JDBCStorageClientPool jdbcStorageClientConnection;
