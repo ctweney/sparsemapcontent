@@ -35,6 +35,7 @@ import org.sakaiproject.nakamura.api.lite.accesscontrol.PrincipalValidatorResolv
 import org.sakaiproject.nakamura.api.lite.authorizable.User;
 import org.sakaiproject.nakamura.lite.accesscontrol.AccessControlManagerImpl;
 import org.sakaiproject.nakamura.lite.accesscontrol.AuthenticatorImpl;
+import org.sakaiproject.nakamura.lite.activity.ActivityManagerImpl;
 import org.sakaiproject.nakamura.lite.authorizable.AuthorizableManagerImpl;
 import org.sakaiproject.nakamura.lite.content.ContentManagerImpl;
 import org.sakaiproject.nakamura.lite.lock.LockManagerImpl;
@@ -46,6 +47,7 @@ public class SessionImpl implements Session {
 
     private AccessControlManagerImpl accessControlManager;
     private ContentManagerImpl contentManager;
+    private ActivityManagerImpl activityManager;
     private AuthorizableManagerImpl authorizableManager;
     private LockManagerImpl lockManager;
     private User currentUser;
@@ -79,6 +81,10 @@ public class SessionImpl implements Session {
                 BaseColumnFamilyCacheManager.getCache(configuration,
                         configuration.getContentColumnFamily(), storageCacheManager), storeListener);
 
+        activityManager = new ActivityManagerImpl(client, accessControlManager, configuration,
+                BaseColumnFamilyCacheManager.getCache(configuration,
+                        configuration.getActivityColumnFamily(), storageCacheManager), storeListener);
+
         lockManager = new LockManagerImpl(client, configuration, currentUser,
                 BaseColumnFamilyCacheManager.getCache(configuration,
                         configuration.getLockColumnFamily(), storageCacheManager));
@@ -101,6 +107,7 @@ public class SessionImpl implements Session {
             accessControlManager = null;
             authorizableManager = null;
             contentManager = null;
+            activityManager = null;
             client = null;
             authenticator = null;
             closedAt = new Exception("This session was closed at:");
@@ -121,6 +128,11 @@ public class SessionImpl implements Session {
     public ContentManagerImpl getContentManager() throws StorageClientException {
         check();
         return contentManager;
+    }
+
+    public ActivityManagerImpl getActivityManager() throws StorageClientException {
+        check();
+        return activityManager;
     }
 
     public LockManagerImpl getLockManager() throws StorageClientException {

@@ -72,11 +72,11 @@ import java.util.Set;
 public abstract class AbstractContentManagerTest {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractContentManagerTest.class);
-    private StorageClient client;
-    private ConfigurationImpl configuration;
-    private StorageClientPool clientPool;
-    private Map<String, CacheHolder> sharedCache = new ConcurrentLRUMap<String, CacheHolder>(1000);
-    private PrincipalValidatorResolver principalValidatorResolver = new PrincipalValidatorResolverImpl();
+    protected StorageClient client;
+    protected ConfigurationImpl configuration;
+    protected StorageClientPool clientPool;
+    protected Map<String, CacheHolder> sharedCache = new ConcurrentLRUMap<String, CacheHolder>(1000);
+    protected PrincipalValidatorResolver principalValidatorResolver = new PrincipalValidatorResolverImpl();
 
     @Before
     public void before() throws StorageClientException, AccessDeniedException, ClientPoolException,

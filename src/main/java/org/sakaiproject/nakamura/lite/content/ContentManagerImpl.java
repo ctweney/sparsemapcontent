@@ -181,7 +181,7 @@ public class ContentManagerImpl extends CachingManager implements ContentManager
     /**
      * Column Family for this content.
      */
-    private String contentColumnFamily;
+    protected String contentColumnFamily;
 
     private boolean closed;
 

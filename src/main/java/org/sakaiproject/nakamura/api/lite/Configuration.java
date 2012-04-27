@@ -52,6 +52,8 @@ public interface Configuration {
      */
     String getContentColumnFamily();
 
+    String getActivityColumnFamily();
+
     /**
      * @return name of the lock column family.
      */

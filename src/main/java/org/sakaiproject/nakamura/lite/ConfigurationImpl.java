@@ -50,6 +50,8 @@ public class ConfigurationImpl implements Configuration {
     protected static final String AUTHORIZABLE_COLUMN_FAMILY = "authorizable-column-family";
     @Property(value = "cn")
     protected static final String CONTENT_COLUMN_FAMILY = "content-column-family";
+    @Property(value = "act")
+    protected static final String ACTIVITY_COLUMN_FAMILY = "activity-column-family";
     @Property(value = "lk")
     protected static final String LOCK_COLUMN_FAMILY = "lock-column-family";
     
@@ -77,6 +79,7 @@ public class ConfigurationImpl implements Configuration {
     private String keySpace;
     private String authorizableColumnFamily;
     private String contentColumnFamily;
+    private String activityColumnFamily;
     private String lockColumnFamily;
     private String[] indexColumnNames;
     private Map<String, String> sharedProperties;
@@ -89,6 +92,7 @@ public class ConfigurationImpl implements Configuration {
         keySpace = StorageClientUtils.getSetting(properties.get(KEYSPACE), "n");
         authorizableColumnFamily = StorageClientUtils.getSetting(properties.get(AUTHORIZABLE_COLUMN_FAMILY), "au");
         contentColumnFamily = StorageClientUtils.getSetting(properties.get(CONTENT_COLUMN_FAMILY), "cn");
+        activityColumnFamily = StorageClientUtils.getSetting(properties.get(ACTIVITY_COLUMN_FAMILY), "act");
         lockColumnFamily = StorageClientUtils.getSetting(properties.get(LOCK_COLUMN_FAMILY), "ln");
 
         // load defaults
@@ -159,7 +163,11 @@ public class ConfigurationImpl implements Configuration {
     public String getContentColumnFamily() {
         return contentColumnFamily;
     }
-    
+
+    public String getActivityColumnFamily() {
+        return activityColumnFamily;
+    }
+
     public String getLockColumnFamily() {
         return lockColumnFamily;
     }
