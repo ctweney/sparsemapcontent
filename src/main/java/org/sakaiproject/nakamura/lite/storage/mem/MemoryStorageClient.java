@@ -62,7 +62,8 @@ public class MemoryStorageClient implements StorageClient {
     private static final Set<String> AUTO_INDEX_COLUMNS = ImmutableSet.of(
             "cn:_:parenthash",
             "au:_:parenthash",
-            "ac:_:parenthash");
+            "ac:_:parenthash",
+            "act:_:parenthash");
 
     Map<String, Object> store;
     private int blockSize;
